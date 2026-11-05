@@ -4,11 +4,10 @@ Config = {}
 -- SERVER PERFORMANCE & PROTECTION (ANTI-LAG)
 -- ====================================================================
 -- Hanya ADMIN yang boleh memicu Full Deep Disk Scan ke file server.
--- Player biasa akan membaca snapshot dari RAM server (0% CPU, 0% Disk I/O, Instant!)
+-- Player biasa membaca snapshot dari RAM server (0% CPU, 0% Disk I/O, Instant!)
 Config.AdminOnlyFullScan = true
 
 -- Permission ACE untuk admin yang berhak melakukan deep scan
--- Bisa ditambahkan di server.cfg: add_ace group.admin command.scancache allow
 Config.AdminAcePermission = "command.scancache"
 
 -- Cooldown antar Full Deep Disk Scan (detik) untuk mencegah spam I/O di server
@@ -22,6 +21,22 @@ Config.SaveScannedToJson = true
 
 -- Nama file JSON katalog
 Config.AssetsJsonFile = "assets.json"
+
+-- ====================================================================
+-- CRASH PROTECTION & ANTI-CORRUPT MOD SETTINGS
+-- ====================================================================
+-- Preload file .ytd (Texture Dictionary) secara mandiri?
+-- SANGAT DIREKOMENDASIKAN FALSE!
+-- Alasan: Tekstur mobil (.yft) & prop (.ydr) OTOMATIS ter-download saat modelnya di-load via RequestModel.
+-- Memaksa RequestStreamedTextureDict pada file tekstur jalan/map rusak (seperti dt1_rd1_fwy04.ytd)
+-- akan memicu crash fatal GTA V "Invalid fixup, address is neither virtual nor physical".
+Config.PreloadTextureDicts = false
+
+-- Daftar file mod corrupt yang di-blacklist (tidak akan pernah di-load untuk cegah crash)
+Config.BlacklistAssets = {
+    ['dt1_rd1_fwy04'] = true,
+    -- Tambahkan nama file mod lain yang corrupt di sini jika ada (tanpa ekstensi)
+}
 
 -- ====================================================================
 -- COMMAND SETTINGS
@@ -38,7 +53,7 @@ Config.CacheAliasCommand = "cache"
 -- ====================================================================
 -- DOWNLOAD ENGINE SETTINGS (ANTI-STUCK OPTIMIZATIONS)
 -- ====================================================================
--- Timeout maksimal (ms) menunggu 1 model/texture load sebelum otomatis di-skip jika gagal
+-- Timeout maksimal (ms) menunggu 1 model load sebelum otomatis di-skip jika gagal
 Config.ModelLoadTimeoutMs = 2500
 
 -- Delay (ms) jeda antar model saat downloading agar thread FiveM lancar & CPU tidak throttle

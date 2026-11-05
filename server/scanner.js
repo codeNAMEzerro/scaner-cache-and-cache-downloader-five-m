@@ -12,6 +12,12 @@ const EXT_CATEGORIES = {
     '.ybn': 'Collisions'
 };
 
+// Known map/world stream prefixes that should NOT be forced into RequestStreamedTextureDict
+const MAP_WORLD_PREFIXES = [
+    'dt1_', 'sc1_', 'vb_', 'ch1_', 'id1_', 'bh1_', 'sm_', 'cs1_',
+    'hei_', 'h4_', 'des_', 'slod', 'distlod', 'bld_', 'prop_lod'
+];
+
 function formatLabel(name) {
     return name
         .replace(/[_-]+/g, ' ')
@@ -31,13 +37,28 @@ function determineCategory(resName, counts) {
 }
 
 /**
- * Check if file is a non-standalone child asset (_hi, +hi, lod, ybn, ymap, ytyp)
+ * Check if file is safe and preloadable
+ * Prevents "Invalid fixup, address is neither virtual nor physical" crashes
  */
 function isAssetPreloadable(baseName, ext) {
     const lowerName = baseName.toLowerCase();
+
+    // 1. Map, archetype, and collision data
     if (['.ymap', '.ytyp', '.ybn'].includes(ext)) return false;
+
+    // 2. High LOD child meshes and mipmaps
     if (lowerName.endsWith('_hi') || lowerName.endsWith('+hi') || lowerName.endsWith('_lod')) return false;
+
+    // 3. Ped clothing parts (mp_m_freemode_01^...)
     if (lowerName.includes('^')) return false;
+
+    // 4. World map textures (e.g. dt1_rd1_fwy04.ytd) - terrain/road replacement mods
+    if (ext === '.ytd') {
+        for (const prefix of MAP_WORLD_PREFIXES) {
+            if (lowerName.startsWith(prefix)) return false;
+        }
+    }
+
     return true;
 }
 
@@ -64,7 +85,6 @@ function findStreamDir(resPath) {
 
 /**
  * Scan a single resource's stream directory
- * Highly optimized: only keeps essential fields to minimize network payload
  */
 function getResourceAssets(resourceName) {
     const resPath = GetResourcePath(resourceName);
@@ -90,7 +110,6 @@ function getResourceAssets(resourceName) {
                             const baseName = path.basename(file.name, ext).toLowerCase();
                             const preloadable = isAssetPreloadable(baseName, ext);
 
-                            // Minimalist payload object (75% smaller RAM & network footprint)
                             assets.push({
                                 name: baseName,
                                 ext: ext,
@@ -166,7 +185,6 @@ function scanAllServerResources() {
         }
     }
 
-    // Sort alphabetically
     catalog.sort((a, b) => a.resource.localeCompare(b.resource));
 
     return {

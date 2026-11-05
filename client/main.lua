@@ -71,7 +71,7 @@ CreateThread(function()
 end)
 
 -- ====================================================================
--- ENGINE: ASYNCHRONOUS ASSET DOWNLOADER & PRELOADER (FULLY OPTIMIZED)
+-- ENGINE: ASYNCHRONOUS ASSET DOWNLOADER & PRELOADER (CRASH-PROOF)
 -- ====================================================================
 local function RunDownloadEngine(targetAssets, batchLabel)
     if isDownloading then
@@ -127,20 +127,28 @@ local function RunDownloadEngine(targetAssets, batchLabel)
                 currentResIndex = currentResIndex + 1
             end
 
-            -- Preload asset jika preloadable (bukan child _hi, +hi, ymap, ybn)
-            local isPreloadable = (asset.pre ~= 0 and asset.preloadable ~= false)
+            local assetNameLower = (asset.name or ''):lower()
             local ext = (asset.ext or asset.extension or ''):lower()
             local assetSize = (asset.size or asset.sizeBytes or 0)
 
+            -- Cek Blacklist (Mencegah mod corrupt seperti dt1_rd1_fwy04.ytd)
+            local isBlacklisted = (Config.BlacklistAssets and Config.BlacklistAssets[assetNameLower])
+            local isPreloadable = (asset.pre ~= 0 and asset.preloadable ~= false) and not isBlacklisted
+
+            -- Proteksi Crash RAGE Engine pgStreamer:
+            -- Hanya panggil RequestStreamedTextureDict jika diizinkan di config
             if isPreloadable then
                 if ext == '.ytd' then
-                    RequestStreamedTextureDict(asset.name, false)
-                    local timeout = GetGameTimer() + (Config.ModelLoadTimeoutMs or 2500)
-                    while not HasStreamedTextureDictLoaded(asset.name) and GetGameTimer() < timeout and not cancelRequested do
-                        Wait(20)
+                    if Config.PreloadTextureDicts then
+                        RequestStreamedTextureDict(asset.name, false)
+                        local timeout = GetGameTimer() + (Config.ModelLoadTimeoutMs or 2500)
+                        while not HasStreamedTextureDictLoaded(asset.name) and GetGameTimer() < timeout and not cancelRequested do
+                            Wait(20)
+                        end
+                        SetStreamedTextureDictAsNoLongerNeeded(asset.name)
                     end
-                    SetStreamedTextureDictAsNoLongerNeeded(asset.name)
                 else
+                    -- Model (.ydr, .yft, .ydd)
                     local hash = GetHashKey(asset.name)
                     if IsModelInCdimage(hash) and IsModelValid(hash) then
                         RequestModel(hash)
@@ -161,7 +169,7 @@ local function RunDownloadEngine(targetAssets, batchLabel)
             local remainBytes = math.max(0, totalBytes - downloadedBytes)
             local etaSec = (speedBps > 0) and math.ceil(remainBytes / speedBps) or 0
 
-            -- Single Unified NUI Message (Memotong beban CEF IPC hingga 50%)
+            -- Single Unified NUI Message
             SendNUIMessage({
                 action = "progressUpdate",
                 percent = math.floor((downloadedCount / totalModels) * 100),
